@@ -20,14 +20,14 @@ import {
 
 const router = Router();
 
-router.get("/reviews/:id", validateParams(reviewIdParamSchema), getReview);
+router.get("/:id", validateParams(reviewIdParamSchema), getReview);
 
 // GET /reviews?page=1&limit=10
-router.get("/reviews", validateQuery(getAllReviewsQuerySchema), getAllReviews);
+router.get("/", validateQuery(getAllReviewsQuerySchema), getAllReviews);
 
 // PATCH /reviews/:id/approve => body: { approved: true }
 router.patch(
-  "/reviews/:id/approve",
+  "/:id/approve",
   validateParams(reviewIdParamSchema),
   validate(updateReviewApprovalBodySchema),
   updateReviewApproval
