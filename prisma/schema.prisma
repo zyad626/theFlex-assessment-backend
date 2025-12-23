@@ -1,0 +1,281 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Review {
+  id            Int        @id @default(autoincrement())
+  type          String     // e.g., "host-to-guest", "guest-to-host"
+  listing       Listing    @relation(fields: [listingId], references: [id])
+  listingId     Int        // maps to listingMapId
+  status        String     // e.g., "published", "draft", "deleted"
+  rating        Int?       // top-level overall rating (nullable per your example)
+  publicReview  String?
+  submittedAt   DateTime   @default(now()) // or use @db.DateTime(3) for ms precision
+  guestName     String?    // only relevant for host-to-guest? nullable for flexibility
+  listingName   String?    // could be redundant (from Listing.title), but stored for snapshot
+
+  // Relations
+  reviewCategories ReviewCategory[]
+
+  @@map("reviews") // optional: if your DB table is named differently
+}
+
+model ReviewCategory {
+  id         Int    @id @default(autoincrement())
+  review     Review @relation(fields: [reviewId], references: [id])
+  reviewId   Int
+  category   String // e.g., "cleanliness", "communication", "respect_house_rules"
+  rating     Int    // non-null (per your example)
+
+  @@unique([reviewId, category]) // enforce one rating per category per review
+  @@map("review_categories")
+}
+
+enum RoomType {
+  ENTIRE_HOME
+  PRIVATE_ROOM
+  SHARED_ROOM
+}
+
+enum BathroomType {
+  PRIVATE
+  SHARED
+}
+
+enum CancellationPolicyType {
+  FLEXIBLE
+  MODERATE
+  STRICT
+  CUSTOM
+}
+
+enum ExportStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  DISABLED
+}
+
+// Main Listing Model
+model Listing {
+  id                              Int                     @id @default(autoincrement())
+  propertyTypeId                  Int
+  name                            String
+  externalListingName             String?
+  internalListingName             String?
+  description                     String?
+  thumbnailUrl                    String?
+  houseRules                      String?
+  keyPickup                       String?
+  specialInstruction              String?
+  doorSecurityCode                String?
+  
+  // Location
+  country                         String
+  countryCode                     String
+  state                           String?
+  city                            String
+  street                          String?
+  address                         String?
+  publicAddress                   String?
+  zipcode                         String?
+  lat                             Float?
+  lng                             Float?
+
+  // Pricing & Capacity
+  price                           Float
+  weeklyDiscount                  Float     @default(1.0)
+  monthlyDiscount                 Float     @default(1.0)
+  propertyRentTax                 Float     @default(0)
+  guestPerPersonPerNightTax       Float     @default(0)
+  guestStayTax                    Float     @default(0)
+  guestNightlyTax                 Float     @default(0)
+  refundableDamageDeposit         Float     @default(0)
+  isDepositStayCollected          Boolean   @default(false)
+  personCapacity                  Int
+  maxChildrenAllowed              Int?
+  maxInfantsAllowed               Int?
+  maxPetsAllowed                  Int?
+
+  // Booking Rules
+  checkInTimeStart                Int       // e.g., 15 for 3 PM
+  checkInTimeEnd                  Int       // e.g., 23 for 11 PM
+  checkOutTime                    Int       // e.g., 10 for 10 AM
+  cancellationPolicy              CancellationPolicyType @default(FLEXIBLE)
+  cancellationPolicyId            Int?
+  minNights                       Int
+  maxNights                       Int
+  guestsIncluded                  Int       @default(1)
+  cleaningFee                     Float     @default(0)
+  checkinFee                      Float     @default(0)
+  priceForExtraPerson             Float     @default(0)
+  instantBookable                 Boolean   @default(true)
+  allowSameDayBooking             Boolean   @default(false)
+  sameDayBookingLeadTime          Int?      // hours
+
+  // Property Details
+  roomType                        RoomType  @default(ENTIRE_HOME)
+  bathroomType                    BathroomType @default(PRIVATE)
+  bedroomsNumber                  Int
+  bedsNumber                      Int
+  bathroomsNumber                 Int
+  guestBathroomsNumber            Int?
+  squareMeters                    Float?
+
+  // Contact & Localization
+  contactName                     String?
+  contactSurName                  String?
+  contactPhone1                   String?
+  contactPhone2                   String?
+  contactLanguage                 String?   // e.g., "en-fr-ar"
+  contactEmail                    String?
+  contactAddress                  String?
+  language                        String    @default("en")
+  currencyCode                    String    @default("GBP")
+  timeZoneName                    String    @default("UTC")
+
+  // WiFi
+  wifiUsername                    String?
+  wifiPassword                    String?
+
+  // Licensing
+  propertyLicenseNumber           String?
+  propertyLicenseType             String?
+  propertyLicenseIssueDate        DateTime?
+  propertyLicenseExpirationDate   DateTime?
+
+  // Export Statuses
+  airbnbExportStatus              ExportStatus? @default(DISABLED)
+  vrboExportStatus                ExportStatus? @default(DISABLED)
+  marriotExportStatus             ExportStatus? @default(DISABLED)
+  bookingcomExportStatus          ExportStatus? @default(DISABLED)
+  expediaExportStatus             ExportStatus? @default(DISABLED)
+  googleExportStatus              ExportStatus? @default(DISABLED)
+
+  // URLs
+  airbnbListingUrl                String?
+  vrboListingUrl                  String?
+  googleVrListingUrl              String?
+  expediaListingUrl               String?
+  marriottListingName             String?
+
+  // Metadata
+  cleannessStatus                 String?   // consider enum if fixed values like "1", "2", "3"
+  cleaningInstruction             String?
+  cleannessStatusUpdatedOn        DateTime?
+  partnersListingMarkup           Float     @default(1.0)
+  airbnbOfficialListingMarkup     Float     @default(1.0)
+  bookingEngineMarkup             Float     @default(1.0)
+  homeawayApiMarkup               Float     @default(1.0)
+  marriottListingMarkup           Float     @default(1.0)
+  latestActivityOn                DateTime? @updatedAt
+  insertedOn                      DateTime  @default(now())
+  averageReviewRating             Float?
+  averageNightlyPrice             Float?
+
+  // Relations
+  amenities        ListingAmenity[]
+  bedTypes         ListingBedType[]
+  images           ListingImage[]
+  tags             ListingTag[]
+  customFieldValues ListingCustomFieldValue[]
+  reviews          Review[]
+
+  // Optional: foreign key to PropertyType
+  // propertyType   PropertyType @relation(fields: [propertyTypeId], references: [id])
+}
+
+// —————— RELATIONAL MODELS ——————
+
+model ListingAmenity {
+  id          Int       @id @default(autoincrement())
+  listing     Listing   @relation(fields: [listingId], references: [id])
+  listingId   Int
+  amenityId   Int
+  amenityName String
+
+  @@unique([listingId, amenityId])
+  @@index([listingId])
+}
+
+model ListingBedType {
+  id             Int     @id @default(autoincrement())
+  listing        Listing @relation(fields: [listingId], references: [id])
+  listingId      Int
+  bedTypeId      Int
+  quantity       Int
+  bedroomNumber  Int     // which bedroom this applies to
+
+  @@index([listingId])
+}
+
+model ListingImage {
+  id                    Int      @id @default(autoincrement())
+  listing               Listing  @relation(fields: [listingId], references: [id])
+  listingId             Int
+  caption               String?
+  bookingEngineCaption  String?
+  airbnbCaption         String?
+  vrboCaption           String?
+  url                   String
+  sortOrder             Int      @default(0)
+
+  @@index([listingId])
+  @@index([sortOrder])
+}
+
+model ListingTag {
+  id        Int     @id @default(autoincrement())
+  listing   Listing @relation(fields: [listingId], references: [id])
+  listingId Int
+  name      String
+
+  @@unique([listingId, name])
+  @@index([listingId])
+}
+
+// For dynamic/custom fields (flexible metadata)
+model CustomField {
+  id             Int                      @id @default(autoincrement())
+  name           String                   @unique
+  type           String                   // e.g., "text", "number", "dropdown", "boolean"
+  possibleValues Json?                    // store as JSON array of strings/objects
+  isPublic       Boolean                  @default(true)
+  insertedOn     DateTime                 @default(now())
+  updatedOn      DateTime                 @updatedAt
+
+  listingCustomFieldValues  ListingCustomFieldValue[]
+}
+
+model ListingCustomFieldValue {
+  id              Int           @id @default(autoincrement())
+  listing         Listing       @relation(fields: [listingId], references: [id])
+  listingId       Int
+  customField     CustomField   @relation(fields: [customFieldId], references: [id])
+  customFieldId   Int
+  value           String?       // store all as string; parse on app layer (or use Json)
+  insertedOn      DateTime      @default(now())
+  updatedOn       DateTime      @updatedAt
+
+  @@unique([listingId, customFieldId])
+  @@index([listingId])
+  @@index([customFieldId])
+}
+
+// Optional but recommended: PropertyType if used elsewhere
+model PropertyType {
+  id   Int      @id
+  name String   @unique
+  // listings Listing[]
+}
