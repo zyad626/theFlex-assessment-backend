@@ -2,9 +2,14 @@ import express from "express";
 import { errorHandler } from "./middlewares/errorHandler";
 import listingRouter from "./routes/listing.routes";
 import reviewRouter from "./routes/review.routes";
+import cors from "cors";
 
 const app = express();
-
+app.use(
+  cors({
+    origin: "*",
+  })
+);
 app.use(express.json());
 
 app.use("/listings", listingRouter);
